@@ -1,0 +1,40 @@
+services:
+  weaviate:
+    command:
+    - --host
+    - 0.0.0.0
+    - --port
+    - '8080'
+    - --scheme
+    - http
+    image: cr.weaviate.io/semitechnologies/weaviate:1.28.4
+    ports:
+    - 8080:8080
+    - 50051:50051
+    volumes:
+    - weaviate_data:/var/lib/weaviate
+    restart: on-failure:0
+    environment:
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      ENABLE_MODULES: ''
+      CLUSTER_HOSTNAME: 'node1'
+
+  python-app:
+    image: ghcr.io/astral-sh/uv:python3.12-alpine
+    volumes:
+      - ./:/app
+      - ./.venv:/app/.venv
+    working_dir: /app
+    command: sh -c "uv sync && tail -f /dev/null"
+    env_file:
+      - backend/.env
+    environment:
+      PYTHONPATH: /app
+      VIRTUAL_ENV: /app/.venv
+      PATH: /app/.venv/bin:$PATH
+    depends_on:
+      - weaviate
+
+volumes:
+  weaviate_data:

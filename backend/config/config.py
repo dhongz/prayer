@@ -5,7 +5,8 @@ load_dotenv()
 
 
 class Config:
-    HUGGINGFACE_API_KEY = os.getenv("HUGGGINGFACE_API_KEY")
+    HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 
 config = Config()
