@@ -3,7 +3,7 @@ from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 import weaviate
-from backend.config.config import config
+from app.config.config import config
 import pickle
 import os
 from .state import Query

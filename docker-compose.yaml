@@ -19,22 +19,31 @@ services:
       DEFAULT_VECTORIZER_MODULE: 'none'
       ENABLE_MODULES: ''
       CLUSTER_HOSTNAME: 'node1'
-
-  python-app:
-    image: ghcr.io/astral-sh/uv:python3.12-alpine
+  db:
+    image: postgres:16
+    env_file:
+      - .env.dev
+    ports:
+      - "5432:5432"
     volumes:
-      - ./:/app
-      - ./.venv:/app/.venv
-    working_dir: /app
-    command: sh -c "uv sync && tail -f /dev/null"
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    command: sh -c "alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "8000:8000"
     env_file:
       - backend/.env
-    environment:
-      PYTHONPATH: /app
-      VIRTUAL_ENV: /app/.venv
-      PATH: /app/.venv/bin:$PATH
     depends_on:
-      - weaviate
+      - db
+    volumes:
+      - ./backend:/app/backend
+    environment:
+      - PYTHONPATH=/app
 
 volumes:
   weaviate_data:
+  postgres_data:

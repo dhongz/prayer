@@ -1,9 +1,10 @@
 .venv
 .env
+.env.dev
 __pycache__
 
 
-
+__pycache__
 .python-version
 
 data/
