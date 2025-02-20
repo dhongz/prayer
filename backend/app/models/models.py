@@ -43,6 +43,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=True)
     provider = Column(String, nullable=False)  # e.g., "apple", "google", "email"
+    provider_id = Column(String, nullable=False)
     profile_picture = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now())
     is_active = Column(Boolean, default=True)

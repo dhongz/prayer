@@ -7,7 +7,7 @@ from app.config.config import config
 from app.models import Base
 from app.api import api_router
 
-app = FastAPI(title="Prayer API")
+app = FastAPI(title="Prayer API", redirect_slashes=False)
 
 # Configure CORS
 app.add_middleware(
@@ -27,9 +27,13 @@ Base.metadata.create_all(bind=engine)
 # from backend.api.routes import router
 # app.include_router(router)
 
-@app.get("/")
+@app.get("")
 async def root():
     return {"message": "Prayer API is running"}
+
+@app.get("/ee")
+async def root():
+    return {"message": "Prayer APeeeeeeee"}
 
 
 app.include_router(api_router, prefix="/api/v1")

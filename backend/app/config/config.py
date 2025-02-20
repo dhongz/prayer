@@ -9,6 +9,7 @@ class Config:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     DATABASE_URL = os.getenv("DATABASE_URL")
     ASYNC_DATABASE_URL = os.getenv("ASYNC_DATABASE_URL")
+    JWT_SECRET = os.getenv("JWT_SECRET")
 
 
 config = Config()
