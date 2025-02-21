@@ -42,7 +42,7 @@ class User(Base):
     id = Column(String, primary_key=True, index=True, default=generate_uuid)  # UUID or OAuth ID
     email = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=True)
-    provider = Column(String, nullable=False)  # e.g., "apple", "google", "email"
+    provider = Column(String, nullable=False)
     provider_id = Column(String, nullable=False)
     profile_picture = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now())

@@ -31,9 +31,4 @@ Base.metadata.create_all(bind=engine)
 async def root():
     return {"message": "Prayer API is running"}
 
-@app.get("/ee")
-async def root():
-    return {"message": "Prayer APeeeeeeee"}
-
-
 app.include_router(api_router, prefix="/api/v1")

@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 class AppleToken(BaseModel):
-    appleToken: str
+    apple_token: str
 
 class AccessToken(BaseModel):
-    accessToken: str
+    access_token: str
