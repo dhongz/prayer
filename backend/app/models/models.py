@@ -1,13 +1,10 @@
 from sqlalchemy import (
     Column, String, Integer, Boolean, DateTime, ForeignKey, Table, func, Enum, Text
 )
-from sqlalchemy.orm import relationship, DeclarativeBase
+from sqlalchemy.orm import relationship
 import enum
 import uuid
-
-
-class Base(DeclarativeBase):
-    pass
+from app.db.database import Base
 
 def generate_uuid():
     return str(uuid.uuid4())

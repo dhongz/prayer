@@ -1,17 +1,17 @@
-from langchain_weaviate.vectorstores import WeaviateVectorStore
-from langchain_core.documents import Document
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
-import weaviate
-from app.config.config import config
 import pickle
 import os
+import asyncio
+
+from langchain_core.documents import Document
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.messages import SystemMessage, HumanMessage
+
 from .state import Query
 
-llm = ChatOpenAI(
-    model="gpt-4o-mini",
-    api_key=config.OPENAI_API_KEY
-)
+from app.config.config import config
+from app.config.llm import oai_llm
+from app.db.database import get_vector_store
+
 
 def view_checkpoints():
     """
@@ -48,7 +48,7 @@ def view_checkpoints():
     print(f"\nTotal documents across all books: {total_docs}")
 
 def optimize_query(prayer):
-    with_structure = llm.with_structured_output(Query)
+    with_structure = oai_llm.with_structured_output(Query)
     prompt = """You are a Bible Verse Retrieval Assistant. Your task is to take a user's prayer and reframe it into a refined search query that captures the core theological themes and concepts expressed in the prayer, without including any extraneous words that might skew vector embeddings.
 
    Follow these steps:
@@ -81,28 +81,21 @@ def optimize_query(prayer):
 
     return with_structure.invoke(messages)
 
-def main():
+async def main():
     # Add this to test the new function
     # view_checkpoints()
-    
-    embeddings = OpenAIEmbeddings(
-        model="text-embedding-3-small",
-        api_key=config.OPENAI_API_KEY
-    )
 
-    weaviate_client = weaviate.connect_to_local()
-
-    vdb = WeaviateVectorStore(client=weaviate_client,text_key="text", embedding=embeddings, index_name="node1")
+    vdb, client = await get_vector_store()
 
 
     prayer = "Dear Lord, I am feeling lost and need guidance. I need a sign of hope and direction."
     query = optimize_query(prayer)
     print(query)
 
-    result = vdb.similarity_search_with_score(query.verse)
+    result = await vdb.asimilarity_search_with_score(query.verse)
     print(result)
     # result = vdb.similarity_search_with_score("how do i go to heaven")
     # print(result)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

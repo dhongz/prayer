@@ -6,14 +6,17 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
 import sqlite3
-import weaviate
+
 import os
-from backend.config.config import config
+from app.config import config
 from .prompts import system_prompt, user_prompt
 from .state import ContinueAdding
 import pickle
 import multiprocessing
 from functools import partial
+import asyncio
+
+from app.db.database import get_vector_store
 
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
@@ -132,15 +135,15 @@ def load_documents_from_db() -> list:
     return all_docs
 
 
-def create_vector_store_from_docs(docs: list, vdb):
+async def create_vector_store_from_docs(docs: list, vdb):
     """
     Creates a Weaviate vector store from a list of LangChain Documents.
     """
-    vdb.add_documents(docs)
+    await vdb.aadd_documents(docs)
     return 
 
 
-def main():
+async def main():
     # -----------------------------------------------
     # Configuration & Initialization
     # ----------------------------------------------
@@ -150,25 +153,51 @@ def main():
     #     api_key=config.HUGGINGFACE_API_KEY,
     #     model_name="sentence-transformers/all-MiniLM-l6-v2"
     # )
-    embeddings = OpenAIEmbeddings(
-        model="text-embedding-3-small",
-        api_key=config.OPENAI_API_KEY
-    )
-
-    # Connect to Weaviate (adjust connection as needed)
-    weaviate_client = weaviate.connect_to_local()
-    vdb = WeaviateVectorStore(client=weaviate_client,text_key="text", embedding=embeddings, index_name="node1")
-
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    data_dir = os.path.join(project_root, "data")
+    
+    # Get all checkpoint files
+    checkpoint_files = []
+    for file in os.listdir(data_dir):
+        if file.startswith("vectorize_checkpoint") and file.endswith(".pkl"):
+            checkpoint_files.append(os.path.join(data_dir, file))
+    
+    print(f"Found {len(checkpoint_files)} checkpoint files")
+    
+    # Initialize vector store
+    vdb, client = await get_vector_store()
+    all_docs = []
+    for checkpoint_file in checkpoint_files:
+        try:
+            with open(checkpoint_file, 'rb') as f:
+                print(f"Loading checkpoint file: {checkpoint_file}")
+                docs = pickle.load(f)
+                all_docs.extend(docs)
+                print(f"Loaded {len(docs)} documents from {checkpoint_file}")
+        except Exception as e:
+            print(f"Error loading {checkpoint_file}: {e}")
+    
+    print(f"Total documents loaded: {len(all_docs)}")
+    
+    # Create vector store from all documents
+    if all_docs:
+        try:
+            await create_vector_store_from_docs(all_docs, vdb)
+            print("Successfully created vector store from all documents")
+        except Exception as e:
+            print(f"Error creating vector store: {e}")
+    else:
+        print("No documents found to process")
     # -----------------------------------------------
     # Load Documents from SQLite DB
     # -----------------------------------------------
-    docs = load_documents_from_db()
+    # docs = load_documents_from_db()
     # # -----------------------------------------------
     # # Create a Vector Store from Documents
     # # -----------------------------------------------
-    result = create_vector_store_from_docs(docs, vdb)
+    # result = create_vector_store_from_docs(docs, vdb)
     print("Vector store has been created.")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

@@ -10,6 +10,7 @@ class Config:
     DATABASE_URL = os.getenv("DATABASE_URL")
     ASYNC_DATABASE_URL = os.getenv("ASYNC_DATABASE_URL")
     JWT_SECRET = os.getenv("JWT_SECRET")
+    WEAVIATE_URL = os.getenv("WEAVIATE_URL")
 
 
 config = Config()

@@ -7,3 +7,4 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 
 oai_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+langchain_embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
