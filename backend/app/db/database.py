@@ -58,12 +58,22 @@ async def get_weaviate_client():
         raise
 
 async def get_vector_store():
-    client = await get_weaviate_client()
-    vector_store = WeaviateVectorStore(
-        client=client,
-        index_name="node1",
-        text_key="content",
-        embedding=langchain_embeddings,
-        # use_multi_tenancy=True
-    )
-    return vector_store, client  # Return both the store and client
+    try:
+        client = weaviate.connect_to_custom(
+            http_host=config.WEAVIATE_URL,
+            http_port=8080,
+            http_secure=False,
+            grpc_host=config.WEAVIATE_URL,
+            grpc_port=50051,
+            grpc_secure=False,
+        )
+        vector_store = WeaviateVectorStore(
+            client=client,
+            index_name="node1",
+            text_key="content",
+            embedding=langchain_embeddings,
+        )
+        return vector_store, client
+    except Exception as e:
+        logger.error(f"Error connecting to Weaviate: {e}")
+        raise

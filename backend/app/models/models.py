@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, String, Integer, Boolean, DateTime, ForeignKey, Table, func, Enum, Text
+    Column, String, Integer, Boolean, DateTime, ForeignKey, Table, func, Enum, Text, Float
 )
 from sqlalchemy.orm import relationship
 import enum
@@ -75,6 +75,8 @@ class Prayer(Base):
     # Reactions on this prayer (if shared on any wall)
     reactions = relationship("Reaction", back_populates="prayer")
 
+    verse_recommendations = relationship("PrayerVerseRecommendation", back_populates="prayer")
+
 
 # PrayerWall model (private groups for sharing prayers)
 class PrayerWall(Base):
@@ -94,6 +96,31 @@ class PrayerWall(Base):
     
     # Reactions specific to prayers shared on this wall will be stored in the Reaction model
 
+class PrayerVerseRecommendation(Base):
+    __tablename__ = "prayer_verse_recommendations"
+    
+    id = Column(String, primary_key=True, index=True, default=generate_uuid)
+    prayer_id = Column(String, ForeignKey("prayers.id"), nullable=False)
+    
+    # Split verse reference into components for better querying
+    book_name = Column(String, nullable=False)
+    chapter_number = Column(Integer, nullable=False)
+    verse_number_start = Column(Integer, nullable=False)
+    verse_number_end = Column(Integer, nullable=True)  # For cases where recommendation spans multiple verses
+    
+    verse_text = Column(Text, nullable=False)
+    justification = Column(Text, nullable=False)
+    relevance_score = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    
+    prayer = relationship("Prayer", back_populates="verse_recommendations")
+    
+    @property
+    def verse_reference(self):
+        """Returns formatted verse reference (e.g., 'Psalm 23:1-6')"""
+        if self.verse_number_end and self.verse_number_end != self.verse_number_start:
+            return f"{self.book_name} {self.chapter_number}:{self.verse_number_start}-{self.verse_number_end}"
+        return f"{self.book_name} {self.chapter_number}:{self.verse_number_start}"
 
 # Reaction model: reactions to a prayer that is shared on a prayer wall.
 class Reaction(Base):
@@ -123,3 +150,17 @@ class PrayerNotification(Base):
 
     user = relationship("User", back_populates="notifications")
     prayer = relationship("Prayer")
+
+
+# PrayerWallInvite model
+class PrayerWallInvite(Base):
+    __tablename__ = "prayer_wall_invites"
+
+    code = Column(String(36), primary_key=True)
+    wall_id = Column(String(36), ForeignKey("prayer_walls.id"), nullable=False)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    expires_at = Column(DateTime, nullable=True)
+    
+    wall = relationship("PrayerWall")
+    creator = relationship("User")

@@ -10,3 +10,9 @@ class Prayer(BaseModel):
 class PrayerList(BaseModel):
     prayers: list[Prayer] = Field(description="A list of prayers following the format of the Prayer model")
 
+
+class Query(BaseModel):
+    """A refined search query for vector embedding"""
+    verse_text: str = Field(description="The text of the Bible verse that is relevant to the prayer")
+    verse_details: str = Field(description="The details of the verse including the book, chapter, and verse number")
+    justification: str = Field(description="A brief explanation of why you selected this type of verse focusing on the core themes of the prayer and verse. DO not mention the verse text or verse reference in the justification.")

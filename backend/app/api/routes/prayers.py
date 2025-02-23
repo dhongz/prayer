@@ -17,9 +17,10 @@ from app.services.prayers import (process_create_prayer,
                                   process_update_prayer, 
                                   process_delete_prayer,
                                   process_text_prayers,
-                                  process_bulk_create_prayer)
-
-
+                                  process_bulk_create_prayer,
+                                  process_share_prayer_to_walls,
+                                  process_remove_prayer_from_wall,
+                                  process_get_prayer_walls)
 
 
 router = APIRouter()
@@ -38,7 +39,7 @@ async def update_prayer(prayer_id: str, prayer: PrayerUpdate, db: AsyncSession =
 
 @router.delete("/{prayer_id}")
 async def delete_prayer(prayer_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return await process_delete_prayer(prayer_id, db, current_user)
+    return await process_delete_prayer(prayer_id, db)
 
 @router.post("/process-prayers")
 async def process_prayers(prayer: PrayerText, current_user: User = Depends(get_current_user)):
@@ -46,5 +47,32 @@ async def process_prayers(prayer: PrayerText, current_user: User = Depends(get_c
 
 @router.post("/bulk-create-prayers")
 async def bulk_create_prayers(prayers: List[ParsedPrayer], db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    print(f"Prayers: {prayers}")
     return await process_bulk_create_prayer(prayers, db, current_user)
+
+
+
+@router.post("/{prayer_id}/walls")
+async def share_prayer_to_walls(
+    prayer_id: str, 
+    wall_ids: List[str], 
+    db: AsyncSession = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    return await process_share_prayer_to_walls(prayer_id, wall_ids, db, current_user)
+
+@router.delete("/{prayer_id}/walls/{wall_id}")
+async def remove_from_wall(
+    prayer_id: str,
+    wall_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await process_remove_prayer_from_wall(prayer_id, wall_id, db, current_user)
+
+@router.get("/{prayer_id}/walls")
+async def get_prayer_walls(
+    prayer_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await process_get_prayer_walls(prayer_id, db, current_user)
