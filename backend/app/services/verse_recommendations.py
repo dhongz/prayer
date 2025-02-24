@@ -5,11 +5,12 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.documents import Document
 
 from app.db.database import get_vector_store
 from app.models import Prayer, PrayerVerseRecommendation
 from app.config.llm import oai_llm
-from app.schemas.llm import Query
+from app.schemas.llm import Query, Relevance, Encouragement
 
 @asynccontextmanager
 async def get_verse_store():
@@ -37,10 +38,7 @@ def optimize_query(prayer: str) -> Query:
     `guidance hope overcoming uncertainty`
 
     3. **Recommend a Bible Verse:**  
-    Using your internal knowledge of the Bible, identify a verse or passage that best aligns with the refined query and the overall context of the prayer. Choose a verse that clearly reflects the themes and emotional tone expressed in the prayer.
-
-    4. **Provide a Justification:**  
-    Along with the recommended verse, provide a brief explanation of why you selected this verse and how it relates to the core themes of the prayer."""
+    Using your internal knowledge of the Bible, identify a verse or passage that best aligns with the refined query and the overall context of the prayer. Choose a verse that clearly reflects the themes and emotional tone expressed in the prayer."""
 
     human_prompt = """Now, please reframe the following prayer accordingly: {prayer}"""
 
@@ -51,38 +49,75 @@ def optimize_query(prayer: str) -> Query:
 
     return with_structure.invoke(messages)
 
+async def verse_relevance(doc: Document, prayer: str):
+    with_structure = oai_llm.with_structured_output(Relevance)
+    relevance_prompt = """You are a Bible Verse Retrieval Assistant. Your task is to take a user's prayer and a Bible verse and determine if the verse is relevant to the prayer.
+
+    Follow these steps:
+
+    1. **Analyze the Prayer and Verse:**  
+    Read the provided prayer and verse carefully and determine if the verse is relevant to the prayer.
+    """
+
+    human_prompt = """Now, please determine if the following verse is relevant to the following prayer: <prayer> {prayer} </prayer> and <verse> {verse} </verse>"""
+
+    system_message = SystemMessage(content=relevance_prompt)
+    human_message = HumanMessage(content=human_prompt.format(prayer=prayer, verse=doc.page_content))
+
+    messages = [system_message] + [human_message]
+
+    try: 
+        results = await with_structure.ainvoke(messages)
+        
+        if results.is_relevant:
+            # insight_prompt = """You are a Non-Denominational Christian Bible Verse Retrieval Assistant. Your task is to take a user's prayer and a Bible verse and provide an encouragement for the user ground in the verse and God's Word. Limit to 2 sentences. Take a personal relationship with God approach."""
+
+            # human_prompt = """Please provide an encouragement for the following prayer based on the following verse: {verse} and prayer: {prayer}"""
+
+            # system_message = SystemMessage(content=insight_prompt)
+            # human_message = HumanMessage(content=human_prompt.format(prayer=prayer, verse=doc.page_content))
+
+            # messages = [system_message] + [human_message]
+
+            # with_structure = oai_llm.with_structured_output(Encouragement)
+            # results = await with_structure.ainvoke(messages)
+            # doc.metadata['encouragement'] = results.encouragement
+            # print(doc)
+            doc.metadata['encouragement'] = ""
+            return doc
+        else:
+            return None
+
+    except Exception as e:
+        print(f"Error in verse_relevance: {str(e)}")
+        raise
+
 async def generate_verse_recommendations(prayer: Prayer) -> List[PrayerVerseRecommendation]:
-    print("=== Starting generate_verse_recommendations ===")
+
     try:
         recommendations = []
         search_results = []  # Store results here
         
         # Get the search results within the vector store context
         async with get_verse_store() as vdb:
-            print("Got vector store connection")
             query_result = optimize_query(prayer.transcription)
-            print(f"Query optimized: {query_result}")
-            search_results = await vdb.asimilarity_search_with_score(query_result.verse_text, k=6)
-            print(f"Found {len(search_results)} similar verses")
-            print("About to exit vector store context")
+            search_results = await vdb.asimilarity_search_with_score(query_result.verse_text, k=10)
         
-        print(f"Search results outside context: {search_results}")
-        # Process results outside the vector store context
         for doc, score in search_results:
-            recommendation = PrayerVerseRecommendation(
-                id=str(uuid.uuid4()),
-                prayer_id=prayer.id,
-                book_name=doc.metadata['book_name'],
-                chapter_number=int(doc.metadata['chapter_number']),
-                verse_number_start=int(doc.metadata['verse_number_start']),
-                verse_number_end=int(doc.metadata.get('verse_number_end', doc.metadata['verse_number_start'])),
-                verse_text=doc.page_content,
-                justification=query_result.justification,
-                relevance_score=float(score)
-            )
-            recommendations.append(recommendation)
-        
-        print(f"Generated {len(recommendations)} recommendations")    
+            relevance_result = await verse_relevance(doc, prayer.transcription)
+            if relevance_result:
+                recommendation = PrayerVerseRecommendation(
+                    id=str(uuid.uuid4()),
+                    prayer_id=prayer.id,
+                    book_name=relevance_result.metadata['book_name'],
+                    chapter_number=int(relevance_result.metadata['chapter_number']),
+                    verse_number_start=int(relevance_result.metadata['verse_number_start']),
+                    verse_number_end=int(relevance_result.metadata.get('verse_number_end', relevance_result.metadata['verse_number_start'])),
+                    verse_text=relevance_result.page_content,
+                    encouragement=relevance_result.metadata['encouragement'],
+                    relevance_score=float(score)
+                )
+                recommendations.append(recommendation)   
         return recommendations
     except Exception as e:
         print(f"Error in generate_verse_recommendations: {str(e)}")

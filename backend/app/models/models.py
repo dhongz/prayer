@@ -109,7 +109,7 @@ class PrayerVerseRecommendation(Base):
     verse_number_end = Column(Integer, nullable=True)  # For cases where recommendation spans multiple verses
     
     verse_text = Column(Text, nullable=False)
-    justification = Column(Text, nullable=False)
+    encouragement = Column(Text, nullable=False)
     relevance_score = Column(Float, nullable=False)
     created_at = Column(DateTime, default=func.now())
     

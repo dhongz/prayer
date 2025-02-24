@@ -40,7 +40,7 @@ class VerseRecommendationResponse(BaseModel):
     verse_number_start: int
     verse_number_end: int | None
     verse_text: str
-    justification: str
+    encouragement: str
     relevance_score: float
     verse_reference: str
 

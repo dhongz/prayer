@@ -391,8 +391,14 @@ async def process_join_wall_with_invite(
         if invite.expires_at and invite.expires_at < datetime.now():
             raise HTTPException(status_code=400, detail="Invite link has expired")
             
-        # Check if user is already a member
-        if any(user.id == current_user.id for user in wall.users):
+        # Check if user is already a member using async query
+        membership_check = await db.execute(
+            select(prayer_wall_users).where(
+                (prayer_wall_users.c.prayer_wall_id == wall.id) &
+                (prayer_wall_users.c.user_id == current_user.id)
+            )
+        )
+        if membership_check.first():
             return {"message": "Already a member of this prayer wall"}
             
         # Add user as member
@@ -405,16 +411,7 @@ async def process_join_wall_with_invite(
         await db.commit()
         
         return {
-            "message": "Joined prayer wall successfully",
-            "wall": PrayerWallResponse(
-                id=wall.id,
-                title=wall.title,
-                description=wall.description,
-                is_public=wall.is_public,
-                created_at=wall.created_at,
-                owner_id=wall.owner_id,
-                role="member"
-            )
+            "message": "Joined prayer wall successfully"
         }
         
     except Exception as e:

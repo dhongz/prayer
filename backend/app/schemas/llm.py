@@ -16,3 +16,11 @@ class Query(BaseModel):
     verse_text: str = Field(description="The text of the Bible verse that is relevant to the prayer")
     verse_details: str = Field(description="The details of the verse including the book, chapter, and verse number")
     justification: str = Field(description="A brief explanation of why you selected this type of verse focusing on the core themes of the prayer and verse. DO not mention the verse text or verse reference in the justification.")
+
+class Relevance(BaseModel):
+    """Relevance of the verse to the prayer"""
+    is_relevant: bool = Field(description="True or False")
+
+class Encouragement(BaseModel):
+    """An encouragement for the user based on the verse, prayer, and God's Word"""
+    encouragement: str = Field(description="An encouragement for the user based on the verse and prayer")
