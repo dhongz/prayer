@@ -50,6 +50,7 @@ class User(Base):
     prayer_walls = relationship("PrayerWall", secondary=prayer_wall_users, back_populates="users")
     notifications = relationship("PrayerNotification", back_populates="user")
     reactions = relationship("Reaction", back_populates="user")
+    device_tokens = relationship("DeviceToken", back_populates="user")
 
 
 # Prayer model
@@ -164,3 +165,16 @@ class PrayerWallInvite(Base):
     
     wall = relationship("PrayerWall")
     creator = relationship("User")
+
+class DeviceToken(Base):
+    __tablename__ = "device_tokens"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    device_token = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=func.now())
+    last_used = Column(DateTime, default=func.now())
+    
+    # Relationship with User
+    user = relationship("User", back_populates="device_tokens")

@@ -100,9 +100,10 @@ async def generate_verse_recommendations(prayer: Prayer) -> List[PrayerVerseReco
         
         # Get the search results within the vector store context
         async with get_verse_store() as vdb:
-            query_result = optimize_query(prayer.transcription)
+            text = f"Prayer for {prayer.entity}\n{prayer.synopsis}\nDescription: {prayer.description}"
+            query_result = optimize_query(text)
             search_results = await vdb.asimilarity_search_with_score(query_result.verse_text, k=10)
-        
+        print(f"Search results: {search_results}")
         for doc, score in search_results:
             relevance_result = await verse_relevance(doc, prayer.transcription)
             if relevance_result:

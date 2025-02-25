@@ -88,11 +88,13 @@ async def main():
     vdb, client = await get_vector_store()
 
 
-    prayer = "Dear Lord, I am feeling lost and need guidance. I need a sign of hope and direction."
-    query = optimize_query(prayer)
-    print(query)
+    # prayer = "Dear Lord, I am feeling lost and need guidance. I need a sign of hope and direction."
+    # query = optimize_query(prayer)
+    # print(query)
 
-    result = await vdb.asimilarity_search_with_score(query.verse)
+    words = "money  and greed and lust"
+
+    result = await vdb.asimilarity_search_with_score(words)
     print(result)
     # result = vdb.similarity_search_with_score("how do i go to heaven")
     # print(result)

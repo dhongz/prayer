@@ -2,8 +2,10 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import List
 import uuid
+import tempfile
+import os
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile, File
 from fastapi.encoders import jsonable_encoder 
 
 from sqlalchemy import select, delete
@@ -23,6 +25,7 @@ from app.schemas.prayers import (PrayerText,
                                  PrayerWallsResponse)
 from app.schemas.llm import Prayer as LLMPrayer, PrayerList as LLMPrayerList
 from app.schemas.prayer_walls import PrayerWallResponse
+from app.services.stt import transcribe_audio
 
 from .prompts import PRAYER_PARSE_SYSTEM_PROMPT
 from .verse_recommendations import generate_verse_recommendations
@@ -142,6 +145,44 @@ async def process_text_prayers(prayer: PrayerText):
         logger.error(f"Error parsing prayers: {e}")
         raise HTTPException(status_code=500, detail="Error parsing prayers")
 
+# @router.post("/process-audio", response_model=List[ParsedPrayer])
+# async def process_audio(
+#     audio: UploadFile = File(...),
+#     current_user: User = Depends(get_current_user)
+# ):
+#    
+
+async def process_audio_prayers(prayer_audio: UploadFile = File(...)):
+    """
+    Process an audio prayer recording and return parsed prayers.
+    The audio is received as a file upload and processed transiently.
+    """
+    if not prayer_audio.filename.lower().endswith(('.m4a', '.mp3', '.wav')):
+        raise HTTPException(status_code=400, detail="File must be an audio file (M4A, MP3, or WAV)")
+    
+    # Create a temporary file with the same extension as the upload
+    file_extension = os.path.splitext(prayer_audio.filename)[1]
+    with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+        try:
+            # Write uploaded file to temporary file
+            contents = await prayer_audio.read()
+            temp_file.write(contents)
+            temp_file.flush()
+            
+            # Get transcription
+            prayer_text = await transcribe_audio(temp_file.name)
+            
+            # Process the transcribed text into prayers
+            parsed_prayers = await process_text_prayers(prayer_text)
+            
+            return parsed_prayers
+            
+        except Exception as e:
+            logger.error(f"Error processing audio: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
+        finally:
+            # Always clean up the temporary file
+            os.unlink(temp_file.name)
 
 async def process_bulk_create_prayer(prayers: List[ParsedPrayer], db: AsyncSession, current_user: User):
     try:
@@ -163,6 +204,7 @@ async def process_bulk_create_prayer(prayers: List[ParsedPrayer], db: AsyncSessi
         # Generate recommendations for each prayer
         for prayer in prayers_list:
             verse_recommendations = await generate_verse_recommendations(prayer)
+            print(f"Verse recommendations: {verse_recommendations}")
             db.add_all(verse_recommendations)
 
         await db.commit()

@@ -19,6 +19,9 @@ class ParsedPrayer(BaseModel):
 class PrayerText(BaseModel):
     text: str
 
+class PrayerAudio(BaseModel):
+    audio: str
+    
 class PreviewPrayers(BaseModel):
     prayer: str
 

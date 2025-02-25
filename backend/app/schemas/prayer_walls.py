@@ -5,6 +5,7 @@ from typing import List, Optional
 class WallUser(BaseModel):
     id: str
     user_id: str
+    email: str
     role: str  # "owner" or "member"
 
     class Config:

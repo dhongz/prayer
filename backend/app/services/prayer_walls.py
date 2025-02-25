@@ -6,6 +6,7 @@ import uuid
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 import secrets
+from sqlalchemy.orm import selectinload
 
 from app.models import (PrayerWall, 
                         User, 
@@ -19,7 +20,9 @@ from app.schemas.prayer_walls import (PrayerWallCreate,
                                      PrayerWallResponse,
                                      WallUser,
                                      PrayerWallsResponse)
+from app.schemas.prayers import PrayerResponse
 
+from app.services.notifications import send_notification_to_user
 
 logging.basicConfig(format="%(levelname)s - %(name)s -  %(message)s", level=logging.WARNING)
 logging.getLogger("prayer-api").setLevel(logging.INFO)
@@ -61,6 +64,7 @@ async def process_create_prayer_wall(prayer_wall: PrayerWallCreate, db: AsyncSes
             users=[WallUser(
                 id=f"{new_wall.id}_{current_user.id}",
                 user_id=current_user.id,
+                email=current_user.email,
                 role="owner"
             )]
         )
@@ -104,6 +108,7 @@ async def process_get_prayer_walls(db: AsyncSession, current_user: User):
                 wall_users.append(WallUser(
                     id=f"{wall.id}_{user.id}",
                     user_id=user.id,
+                    email=user.email,
                     role="owner" if user.id == wall.owner_id else user_role
                 ))
             
@@ -200,22 +205,37 @@ async def process_get_wall_prayers(
         
         result = await db.execute(access_stmt)
         wall = result.scalar_one_or_none()
-        print(wall)
         
         if not wall:
             raise HTTPException(status_code=404, detail="Prayer wall not found or not authorized")
             
-        # Get prayers for this wall
+        # Get prayers for this wall with verse recommendations
         prayers_stmt = select(Prayer).join(
             prayer_wall_prayers,
             (prayer_wall_prayers.c.prayer_id == Prayer.id) &
             (prayer_wall_prayers.c.prayer_wall_id == wall_id)
-        )
+        ).options(selectinload(Prayer.verse_recommendations))
         
         result = await db.execute(prayers_stmt)
         prayers = result.scalars().all()
         
-        return prayers
+        # Format the response to match process_get_prayers output
+        prayers_list = []
+        for prayer in prayers:
+            prayer_response = PrayerResponse(
+                id=prayer.id,
+                transcription=prayer.transcription,
+                entity=prayer.entity,
+                synopsis=prayer.synopsis,
+                description=prayer.description,
+                prayer_type=prayer.prayer_type,
+                is_answered=prayer.is_answered,
+                created_at=prayer.created_at,
+                verse_recommendations=prayer.verse_recommendations
+            )
+            prayers_list.append(prayer_response)
+            
+        return prayers_list
         
     except Exception as e:
         logger.error(f"Error getting wall prayers: {e}")
@@ -408,11 +428,24 @@ async def process_join_wall_with_invite(
             role='member'
         )
         await db.execute(stmt)
+        
+        # Commit the membership addition first to ensure it succeeds
         await db.commit()
         
-        return {
-            "message": "Joined prayer wall successfully"
-        }
+        # Try to send notification, but don't let it break the main functionality
+        try:
+            # Notify wall owner
+            await send_notification_to_user(
+                user_id=wall.owner_id,
+                title="New Prayer Wall Member",
+                body=f"{current_user.email} joined your prayer wall: {wall.title}",
+                db=db
+            )
+        except Exception as e:
+            logger.error(f"Failed to send notification when user joined wall: {e}")
+            # Don't raise an exception here, as the user has already joined successfully
+        
+        return {"message": "Joined prayer wall successfully"}
         
     except Exception as e:
         await db.rollback()

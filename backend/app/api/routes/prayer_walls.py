@@ -39,6 +39,13 @@ async def get_wall_prayers(
 ):
     return await process_get_wall_prayers(wall_id, db, current_user)
 
+@router.delete("/{wall_id}")
+async def delete_prayer_wall(
+    wall_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await process_delete_prayer_wall(wall_id, db, current_user)
 
 @router.post("/{wall_id}/prayers")
 async def add_prayers_to_wall(
