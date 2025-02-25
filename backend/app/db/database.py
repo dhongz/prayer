@@ -72,6 +72,7 @@ async def get_vector_store():
             index_name="node1",
             text_key="content",
             embedding=langchain_embeddings,
+            use_multi_tenancy=True
         )
         return vector_store, client
     except Exception as e:

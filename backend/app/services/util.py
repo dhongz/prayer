@@ -40,3 +40,6 @@ async def transcribe_audio(audio_file: str) -> PrayerText:
         
     except Exception as e:
         raise Exception(f"Transcription error: {str(e)}")
+    
+
+

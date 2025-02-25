@@ -135,11 +135,11 @@ def load_documents_from_db() -> list:
     return all_docs
 
 
-async def create_vector_store_from_docs(docs: list, vdb):
+async def create_vector_store_from_docs(docs: list, vdb, tenant: str):
     """
     Creates a Weaviate vector store from a list of LangChain Documents.
     """
-    await vdb.aadd_documents(docs)
+    await vdb.aadd_documents(docs, tenant=tenant)
     return 
 
 
@@ -182,7 +182,7 @@ async def main():
     # Create vector store from all documents
     if all_docs:
         try:
-            await create_vector_store_from_docs(all_docs, vdb)
+            await create_vector_store_from_docs(all_docs, vdb, "Bible")
             print("Successfully created vector store from all documents")
         except Exception as e:
             print(f"Error creating vector store: {e}")

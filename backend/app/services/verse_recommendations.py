@@ -24,6 +24,15 @@ async def get_verse_store():
             client.close()
             print("Weaviate client closed")
 
+
+async def vectorize_docs(docs: list, tenant: str):
+    """
+    Creates a Weaviate vector store from a list of LangChain Documents.
+    """
+    async with get_verse_store() as vdb:
+        await vdb.aadd_documents(docs, tenant=tenant)
+    return 
+
 def optimize_query(prayer: str) -> Query:
     with_structure = oai_llm.with_structured_output(Query)
     prompt = """You are a Bible Verse Retrieval Assistant. Your task is to take a user's prayer and reframe it into a refined search query that captures the core theological themes and concepts expressed in the prayer, without including any extraneous words that might skew vector embeddings.
@@ -102,10 +111,10 @@ async def generate_verse_recommendations(prayer: Prayer) -> List[PrayerVerseReco
         async with get_verse_store() as vdb:
             text = f"Prayer for {prayer.entity}\n{prayer.synopsis}\nDescription: {prayer.description}"
             query_result = optimize_query(text)
-            search_results = await vdb.asimilarity_search_with_score(query_result.verse_text, k=10)
+            search_results = await vdb.asimilarity_search_with_score(query_result.verse_text, k=10, tenant="Bible")
         print(f"Search results: {search_results}")
         for doc, score in search_results:
-            relevance_result = await verse_relevance(doc, prayer.transcription)
+            relevance_result = await verse_relevance(doc, prayer.description)
             if relevance_result:
                 recommendation = PrayerVerseRecommendation(
                     id=str(uuid.uuid4()),

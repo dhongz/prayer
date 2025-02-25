@@ -13,7 +13,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from langchain_core.messages import HumanMessage, SystemMessage
-
+from langchain_core.documents import Document
 from app.models import Prayer, User, PrayerWall, prayer_wall_users, prayer_wall_prayers, PrayerVerseRecommendation
 from app.config.llm import oai_llm
 from app.schemas.prayers import (PrayerText, 
@@ -25,10 +25,10 @@ from app.schemas.prayers import (PrayerText,
                                  PrayerWallsResponse)
 from app.schemas.llm import Prayer as LLMPrayer, PrayerList as LLMPrayerList
 from app.schemas.prayer_walls import PrayerWallResponse
-from app.services.stt import transcribe_audio
+from backend.app.services.util import transcribe_audio
 
 from .prompts import PRAYER_PARSE_SYSTEM_PROMPT
-from .verse_recommendations import generate_verse_recommendations
+from .verse_recommendations import generate_verse_recommendations, vectorize_docs
 
 logging.basicConfig(format="%(levelname)s - %(name)s -  %(message)s", level=logging.WARNING)
 logging.getLogger("prayer-api").setLevel(logging.INFO)
@@ -130,7 +130,9 @@ async def process_text_prayers(prayer: PrayerText):
         prayers = response.prayers
         print(f"Prayers: {prayers}")
         prayers_list = []
+
         for prayer in prayers:
+
             parsed_prayer = ParsedPrayer(id=str(uuid.uuid4()),
                           transcription=prayer_text,
                           entity=prayer.entity,
@@ -187,7 +189,20 @@ async def process_audio_prayers(prayer_audio: UploadFile = File(...)):
 async def process_bulk_create_prayer(prayers: List[ParsedPrayer], db: AsyncSession, current_user: User):
     try:
         prayers_list = []
+        document_prayers = []
+
         for prayer in prayers:
+            document_prayer_content = f"Prayer for {prayer.entity}\n{prayer.synopsis}\nDescription: {prayer.description}"
+            prayer_document = Document(
+                page_content=document_prayer_content,
+                metadata={"prayer_type": prayer.prayer_type,
+                          "entity": prayer.entity,
+                          "synopsis": prayer.synopsis,
+                          "description": prayer.description,
+                          "id": prayer.id}
+            )
+            document_prayers.append(prayer_document)
+
             prayer = Prayer(
                 id=str(prayer.id),
                 user_id=current_user.id,
@@ -208,7 +223,8 @@ async def process_bulk_create_prayer(prayers: List[ParsedPrayer], db: AsyncSessi
             db.add_all(verse_recommendations)
 
         await db.commit()
-        
+        await vectorize_docs(document_prayers, current_user.id)
+
         return {"message": "Prayers created successfully", "count": len(prayers_list)}
     except Exception as e:
         await db.rollback()
